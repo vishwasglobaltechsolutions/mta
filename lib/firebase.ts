@@ -26,6 +26,24 @@ export interface Item {
   colour?: string;
   category?: string;
   position?: string;
+  rack?: string;
+  row?: string;
+}
+
+export interface MovementLog {
+  id?: string;
+  itemId: string;
+  itemName: string;
+  sku: string;
+  oldQuantity: number;
+  newQuantity: number;
+  difference: number;
+  timestamp: string;
+  action: 'add' | 'remove' | 'update';
+  location?: string;
+  rack?: string;
+  row?: string;
+  position?: string;
 }
 
 export const getItems = async (): Promise<Item[]> => {
@@ -51,16 +69,51 @@ export const addItem = async (item: Omit<Item, 'id'>): Promise<Item> => {
   return res.json();
 };
 
-export const updateItemQuantity = async (id: string, newQuantity: number): Promise<void> => {
+export const getMovements = async (): Promise<MovementLog[]> => {
+  if (db) {
+    const querySnapshot = await getDocs(collection(db, "movements"));
+    const movements = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MovementLog));
+    return movements.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  }
+
+  const res = await fetch('/api/movements');
+  if (res.ok) {
+    return res.json();
+  }
+  return [];
+};
+
+export const updateItemQuantity = async (id: string, newQuantity: number, itemDetails?: { name: string, sku: string, oldQuantity: number, location?: string, rack?: string, row?: string, position?: string }): Promise<void> => {
   if (db) {
     const itemRef = doc(db, "items", id);
     await updateDoc(itemRef, { quantity: newQuantity });
+
+    if (itemDetails) {
+      const difference = newQuantity - itemDetails.oldQuantity;
+      if (difference !== 0) {
+        const movement: MovementLog = {
+          itemId: id,
+          itemName: itemDetails.name,
+          sku: itemDetails.sku,
+          oldQuantity: itemDetails.oldQuantity,
+          newQuantity: newQuantity,
+          difference,
+          timestamp: new Date().toISOString(),
+          action: difference > 0 ? 'add' : 'remove',
+          location: itemDetails.location || '',
+          rack: itemDetails.rack || '',
+          row: itemDetails.row || '',
+          position: itemDetails.position || ''
+        };
+        await addDoc(collection(db, "movements"), movement);
+      }
+    }
     return;
   }
 
   await fetch('/api/items', {
     method: 'PUT',
-    body: JSON.stringify({ id, updates: { quantity: newQuantity } })
+    body: JSON.stringify({ id, updates: { quantity: newQuantity }, movementDetails: itemDetails })
   });
 };
 

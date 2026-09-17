@@ -15,6 +15,12 @@ export default function PickerPanel() {
 
   const [editingQuantity, setEditingQuantity] = useState<{ [id: string]: number }>({});
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
+
+  const toggleExpand = (id: string | undefined) => {
+    if (!id) return;
+    setExpandedItemId(prev => prev === id ? null : id);
+  };
 
   // QR Scanner State
   const [isScanning, setIsScanning] = useState(false);
@@ -127,7 +133,21 @@ export default function PickerPanel() {
     setSavingId(id);
     try {
       const newQty = editingQuantity[id];
-      await updateItemQuantity(id, newQty);
+      const itemToUpdate = items.find(i => i.id === id);
+
+      if (itemToUpdate) {
+        await updateItemQuantity(id, newQty, {
+          name: itemToUpdate.name,
+          sku: itemToUpdate.sku,
+          oldQuantity: itemToUpdate.quantity,
+          location: itemToUpdate.location,
+          rack: itemToUpdate.rack,
+          row: itemToUpdate.row,
+          position: itemToUpdate.position
+        });
+      } else {
+        await updateItemQuantity(id, newQty);
+      }
 
       // Update local state
       setItems(prev => prev.map(item => item.id === id ? { ...item, quantity: newQty } : item));
@@ -142,55 +162,79 @@ export default function PickerPanel() {
     setSavingId(null);
   };
 
-  const renderItemCard = (item: Item, isModal: boolean = false) => (
-    <div key={item.id} className="card" style={{ display: 'flex', flexDirection: 'column', padding: '1.5rem', width: '100%', marginBottom: isModal ? '0' : '1.5rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-        <div>
-          <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: 'var(--primary)', marginBottom: '0.25rem' }}>{item.name}</h3>
-          <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{item.sku}</span>
-        </div>
-      </div>
+  const renderItemCard = (item: Item, isModal: boolean = false) => {
+    const isExpanded = isModal || expandedItemId === item.id;
 
-      <div style={{ fontSize: '0.875rem', marginBottom: '1.5rem', flex: '1' }}>
-        <strong>Location:</strong> {item.location}
-      </div>
-
-      <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontWeight: '500' }}>Quantity:</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--background)', padding: '0.25rem', borderRadius: 'var(--radius-sm)' }}>
-            <button className="btn-icon" onClick={() => item.id && handleQuantityChange(item.id, -1)} style={{ padding: '0.25rem' }}>
-              <Minus size={16} />
-            </button>
-            <input
-              type="number"
-              min="0"
-              className="input-field"
-              style={{ width: '60px', padding: '0.25rem', textAlign: 'center', border: 'none', background: 'transparent' }}
-              value={item.id ? editingQuantity[item.id] ?? item.quantity : 0}
-              onChange={(e) => item.id && handleManualQuantityChange(item.id, e.target.value)}
-            />
-            <button className="btn-icon" onClick={() => item.id && handleQuantityChange(item.id, 1)} style={{ padding: '0.25rem' }}>
-              <Plus size={16} />
-            </button>
+    return (
+      <div
+        key={item.id}
+        className="card"
+        style={{ display: 'flex', flexDirection: 'column', padding: '1.5rem', width: '100%', marginBottom: isModal ? '0' : '1.5rem', cursor: isModal ? 'default' : 'pointer' }}
+        onClick={() => !isModal && toggleExpand(item.id)}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+          <div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: 'var(--primary)', marginBottom: '0.25rem' }}>{item.name}</h3>
+            <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{item.sku}</span>
           </div>
         </div>
 
-        {item.id && editingQuantity[item.id] !== item.quantity && (
-          <button
-            className="btn btn-primary animate-fade-in"
-            style={{ width: '100%', justifyContent: 'center' }}
-            onClick={() => {
-              if (item.id) saveQuantity(item.id);
-            }}
-            disabled={savingId === item.id}
-          >
-            <Save size={18} /> {savingId === item.id ? 'Saving...' : 'Save Updates'}
-          </button>
+        <div style={{ fontSize: '0.875rem', marginBottom: '1.5rem', flex: '1' }}>
+          <strong>Location:</strong> {item.location}
+        </div>
+
+        {isExpanded && (
+          <div className="animate-fade-in" style={{ fontSize: '0.875rem', marginBottom: '1.5rem', padding: '1rem', backgroundColor: 'var(--background)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }} onClick={(e) => e.stopPropagation()}>
+            <h4 style={{ marginBottom: '0.75rem', color: 'var(--text-muted)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Material Details</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div><span style={{ color: 'var(--text-muted)' }}>Size:</span> {item.size || '-'}</div>
+              <div><span style={{ color: 'var(--text-muted)' }}>Colour:</span> {item.colour || '-'}</div>
+              <div><span style={{ color: 'var(--text-muted)' }}>UPPS:</span> {item.upps || '-'}</div>
+              <div><span style={{ color: 'var(--text-muted)' }}>CORE:</span> {item.core || '-'}</div>
+              <div><span style={{ color: 'var(--text-muted)' }}>Rack:</span> {item.rack || '-'}</div>
+              <div><span style={{ color: 'var(--text-muted)' }}>Row:</span> {item.row || '-'}</div>
+              <div><span style={{ color: 'var(--text-muted)' }}>Position:</span> {item.position || '-'}</div>
+            </div>
+          </div>
         )}
+
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontWeight: '500' }}>Quantity:</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--background)', padding: '0.25rem', borderRadius: 'var(--radius-sm)' }}>
+              <button className="btn-icon" onClick={() => item.id && handleQuantityChange(item.id, -1)} style={{ padding: '0.25rem' }}>
+                <Minus size={16} />
+              </button>
+              <input
+                type="number"
+                min="0"
+                className="input-field"
+                style={{ width: '60px', padding: '0.25rem', textAlign: 'center', border: 'none', background: 'transparent' }}
+                value={item.id ? editingQuantity[item.id] ?? item.quantity : 0}
+                onChange={(e) => item.id && handleManualQuantityChange(item.id, e.target.value)}
+              />
+              <button className="btn-icon" onClick={() => item.id && handleQuantityChange(item.id, 1)} style={{ padding: '0.25rem' }}>
+                <Plus size={16} />
+              </button>
+            </div>
+          </div>
+
+          {item.id && editingQuantity[item.id] !== item.quantity && (
+            <button
+              className="btn btn-primary animate-fade-in"
+              style={{ width: '100%', justifyContent: 'center' }}
+              onClick={() => {
+                if (item.id) saveQuantity(item.id);
+              }}
+              disabled={savingId === item.id}
+            >
+              <Save size={18} /> {savingId === item.id ? 'Saving...' : 'Save Updates'}
+            </button>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="container animate-fade-in">

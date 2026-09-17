@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Plus, Edit2, Trash2, QrCode, X, Download, Search } from 'lucide-react';
 import QRCode from 'qrcode';
-import { getItems, addItem, updateItem, deleteItem, Item } from '@/lib/firebase';
+import { getItems, addItem, updateItem, deleteItem, Item, getMovements, MovementLog } from '@/lib/firebase';
 
 export default function AdminPanel() {
   const [items, setItems] = useState<Item[]>([]);
@@ -43,7 +43,9 @@ export default function AdminPanel() {
         item.location.toLowerCase().includes(lowerQuery) ||
         (item.size && item.size.toLowerCase().includes(lowerQuery)) ||
         (item.colour && item.colour.toLowerCase().includes(lowerQuery)) ||
-        (item.position && item.position.toLowerCase().includes(lowerQuery))
+        (item.position && item.position.toLowerCase().includes(lowerQuery)) ||
+        (item.rack && item.rack.toLowerCase().includes(lowerQuery)) ||
+        (item.row && item.row.toLowerCase().includes(lowerQuery))
       ));
     } else {
       setFilteredItems(items);
@@ -54,7 +56,7 @@ export default function AdminPanel() {
     if (item) {
       setCurrentItem(item);
     } else {
-      setCurrentItem({ name: '', sku: '', size: '', upps: 0, core: 0, location: '', quantity: 0 });
+      setCurrentItem({ name: '', sku: '', size: '', upps: 0, core: 0, location: '', quantity: 0, rack: '', row: '' });
     }
     setIsModalOpen(true);
   };
@@ -104,6 +106,43 @@ export default function AdminPanel() {
     }
   };
 
+  const handleDownloadReport = async () => {
+    try {
+      const movements = await getMovements();
+      if (!movements || movements.length === 0) {
+        alert("No movement data available to download.");
+        return;
+      }
+
+      const headers = ["Date", "Item Name", "SKU", "Action", "Old Quantity", "New Quantity", "Difference", "Location", "Rack", "Row", "Position"];
+      const csvContent = [
+        headers.join(","),
+        ...movements.map(m => {
+          const date = new Date(m.timestamp).toLocaleString().replace(/,/g, '');
+          const currentItem = items.find(i => i.id === m.itemId);
+          const location = m.location || currentItem?.location || '';
+          const rack = m.rack || currentItem?.rack || '';
+          const row = m.row || currentItem?.row || '';
+          const position = m.position || currentItem?.position || '';
+
+          return `"${date}","${m.itemName}","${m.sku}","${m.action}",${m.oldQuantity},${m.newQuantity},${m.difference},"${location}","${rack}","${row}","${position}"`;
+        })
+      ].join("\n");
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `material_movement_report_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error downloading report', error);
+      alert("Failed to download report.");
+    }
+  };
+
   return (
     <div className="container animate-fade-in">
       <div className="header">
@@ -113,9 +152,14 @@ export default function AdminPanel() {
           </Link>
           <h1 className="header-title" style={{ margin: 0 }}>Admin Dashboard</h1>
         </div>
-        <button className="btn btn-primary animate-fade-in" onClick={() => handleOpenModal()} style={{ animationDelay: '0.1s' }}>
-          <Plus size={20} /> Add Material
-        </button>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <button className="btn btn-secondary animate-fade-in" onClick={handleDownloadReport} style={{ animationDelay: '0.05s', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Download size={20} /> Movement Report
+          </button>
+          <button className="btn btn-primary animate-fade-in" onClick={() => handleOpenModal()} style={{ animationDelay: '0.1s' }}>
+            <Plus size={20} /> Add Material
+          </button>
+        </div>
       </div>
 
       <div className="card animate-fade-in" style={{ animationDelay: '0.15s', marginBottom: '1.5rem', padding: '1.5rem' }}>
@@ -214,21 +258,45 @@ export default function AdminPanel() {
                   <label className="input-label">Colour</label>
                   <input required className="input-field" value={currentItem.colour || ''} onChange={e => setCurrentItem({ ...currentItem, colour: e.target.value })} placeholder="e.g. Silver" />
                 </div>
-                <div className="input-group">
-                  <label className="input-label">BIN-Location</label>
-                  <input required className="input-field" value={currentItem.location || ''} onChange={e => setCurrentItem({ ...currentItem, location: e.target.value })} placeholder="e.g. Aisle 4, Rack 2" />
-                </div>
-                <div className="input-group">
-                  <label className="input-label">Position</label>
-                  <select required className="input-field" value={currentItem.position || ''} onChange={e => setCurrentItem({ ...currentItem, position: e.target.value })}>
-                    <option value="" disabled>Select Position</option>
-                    <option value="Front(F)">Front(F)</option>
-                    <option value="Back (B)">Back (B)</option>
-                  </select>
-                </div>
                 <div className="input-group full-width">
                   <label className="input-label">Quantity</label>
                   <input required type="number" min={0} className="input-field" value={currentItem.quantity || 0} onChange={e => setCurrentItem({ ...currentItem, quantity: parseInt(e.target.value) || 0 })} />
+                </div>
+                <div className="full-width" style={{ marginTop: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.25rem', gap: '0.75rem' }}>
+                    <div style={{ height: '1px', flex: 1, backgroundColor: 'var(--border)' }}></div>
+                    <h3 style={{ fontSize: '1rem', fontWeight: '600', color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Location Details</h3>
+                    <div style={{ height: '1px', flex: 1, backgroundColor: 'var(--border)' }}></div>
+                  </div>
+
+                  <div className="form-grid" style={{
+                    backgroundColor: 'rgba(59, 130, 246, 0.03)',
+                    padding: '1.5rem',
+                    borderRadius: 'var(--radius-lg)',
+                    border: '1px solid rgba(59, 130, 246, 0.15)',
+                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)'
+                  }}>
+                    <div className="input-group" style={{ marginBottom: 0 }}>
+                      <label className="input-label">RACK</label>
+                      <input required className="input-field" value={currentItem.rack || ''} onChange={e => setCurrentItem({ ...currentItem, rack: e.target.value })} placeholder="e.g. Rack A" />
+                    </div>
+                    <div className="input-group" style={{ marginBottom: 0 }}>
+                      <label className="input-label">ROW</label>
+                      <input required className="input-field" value={currentItem.row || ''} onChange={e => setCurrentItem({ ...currentItem, row: e.target.value })} placeholder="e.g. Row 1" />
+                    </div>
+                    <div className="input-group" style={{ marginBottom: 0 }}>
+                      <label className="input-label">Position</label>
+                      <select required className="input-field" value={currentItem.position || ''} onChange={e => setCurrentItem({ ...currentItem, position: e.target.value })}>
+                        <option value="" disabled>Select Position</option>
+                        <option value="Front(F)">Front(F)</option>
+                        <option value="Back (B)">Back (B)</option>
+                      </select>
+                    </div>
+                    <div className="input-group" style={{ marginBottom: 0 }}>
+                      <label className="input-label">BIN-Location</label>
+                      <input required className="input-field" value={currentItem.location || ''} onChange={e => setCurrentItem({ ...currentItem, location: e.target.value })} placeholder="e.g. Aisle 4" />
+                    </div>
+                  </div>
                 </div>
               </div>
               <div className="form-actions">

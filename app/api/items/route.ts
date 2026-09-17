@@ -6,17 +6,19 @@ export interface Item {
   sku: string;
   upps: number;
   core: number;
-  category: string;
   location: string;
   quantity: number;
   size?: string;
   colour?: string;
+  position?: string;
+  rack?: string;
+  row?: string;
 }
 
 let mockData: Item[] = [
-  { id: "1", name: "Steel Pipes 20mm", sku: "MT-SP-20", size: "20mm", upps: 2, core: 1, category: "Raw Material", location: "Warehouse A, Aisle 3", quantity: 150 },
-  { id: "2", name: "Aluminum Sheets", sku: "MT-AS-05", size: "10mm", upps: 1, core: 2, category: "Raw Material", location: "Warehouse B, Rack 2", quantity: 45 },
-  { id: "3", name: "Industrial Fasteners", sku: "MT-IF-100", size: "20mm", upps: 3, core: 4, category: "Hardware", location: "Warehouse A, Bin 12", quantity: 5000 },
+  { id: "1", name: "DT", sku: "DT-40*50-Y-1-2", size: "40*50mm", colour: "Yellow", upps: 1, core: 2, quantity: 150, location: "RC-R3/F", rack: "C", row: "3", position: "Front(F)" },
+  { id: "2", name: "DT", sku: "DT-50*20-G-1-1", size: "50*20mm", colour: "Green", upps: 1, core: 1, quantity: 45, location: "RD-R2/B", rack: "D", row: "2", position: "Back(B)" },
+  { id: "3", name: "DT", sku: "DT-100*50-B-1-1", size: "100*50mm", colour: "Black", upps: 1, core: 1, quantity: 5000, location: "RF-R4/B", rack: "F", row: "4", position: "Back(B)" },
 ];
 
 export async function GET() {
