@@ -2,17 +2,26 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
+  apiKey: "AIzaSyAHeKoQ8xUYxWtOw0ysagfx5MaHghOP8kE",
+  authDomain: "itemtrakinginventoryapp.firebaseapp.com",
+  projectId: "itemtrakinginventoryapp",
+  storageBucket: "itemtrakinginventoryapp.firebasestorage.app",
+  messagingSenderId: "1004819114519",
+  appId: "1:1004819114519:web:0f47f7f3503287330b0a52"
 };
 
 const hasFirebaseConfig = !!firebaseConfig.projectId;
 const app = hasFirebaseConfig ? (getApps().length === 0 ? initializeApp(firebaseConfig) : getApp()) : null;
 export const db = app ? getFirestore(app) : null;
+
+export interface ItemLocation {
+  id: string;
+  location: string;
+  rack: string;
+  row: string;
+  position: string;
+  quantity: number;
+}
 
 export interface Item {
   id?: string;
@@ -20,11 +29,13 @@ export interface Item {
   sku: string;
   upps: number;
   core: number;
-  location: string;
-  quantity: number;
   size?: string;
   colour?: string;
   category?: string;
+  locations?: ItemLocation[];
+  // Backwards compatibility fields
+  location?: string;
+  quantity?: number;
   position?: string;
   rack?: string;
   row?: string;
@@ -44,16 +55,36 @@ export interface MovementLog {
   rack?: string;
   row?: string;
   position?: string;
+  partyName?: string;
 }
 
 export const getItems = async (): Promise<Item[]> => {
+  let items: Item[] = [];
   if (db) {
     const querySnapshot = await getDocs(collection(db, "items"));
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Item));
+    items = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Item));
+  } else {
+    const res = await fetch('/api/items');
+    items = await res.json();
   }
 
-  const res = await fetch('/api/items');
-  return res.json();
+  // Backwards compatibility mapping
+  return items.map(item => {
+    if (!item.locations) {
+      item.locations = [];
+      if (item.location !== undefined) {
+        item.locations.push({
+          id: 'default',
+          location: item.location || '',
+          rack: item.rack || '',
+          row: item.row || '',
+          position: item.position || '',
+          quantity: item.quantity || 0
+        });
+      }
+    }
+    return item;
+  });
 };
 
 export const addItem = async (item: Omit<Item, 'id'>): Promise<Item> => {
@@ -83,37 +114,39 @@ export const getMovements = async (): Promise<MovementLog[]> => {
   return [];
 };
 
-export const updateItemQuantity = async (id: string, newQuantity: number, itemDetails?: { name: string, sku: string, oldQuantity: number, location?: string, rack?: string, row?: string, position?: string }): Promise<void> => {
+export const updateItemQuantity = async (
+  id: string,
+  updatedLocations: ItemLocation[],
+  movementDetails?: { name: string, sku: string, oldQuantity: number, newQuantity: number, difference: number, location?: string, rack?: string, row?: string, position?: string, partyName?: string }
+): Promise<void> => {
   if (db) {
     const itemRef = doc(db, "items", id);
-    await updateDoc(itemRef, { quantity: newQuantity });
+    await updateDoc(itemRef, { locations: updatedLocations });
 
-    if (itemDetails) {
-      const difference = newQuantity - itemDetails.oldQuantity;
-      if (difference !== 0) {
-        const movement: MovementLog = {
-          itemId: id,
-          itemName: itemDetails.name,
-          sku: itemDetails.sku,
-          oldQuantity: itemDetails.oldQuantity,
-          newQuantity: newQuantity,
-          difference,
-          timestamp: new Date().toISOString(),
-          action: difference > 0 ? 'add' : 'remove',
-          location: itemDetails.location || '',
-          rack: itemDetails.rack || '',
-          row: itemDetails.row || '',
-          position: itemDetails.position || ''
-        };
-        await addDoc(collection(db, "movements"), movement);
-      }
+    if (movementDetails && movementDetails.difference !== 0) {
+      const movement: MovementLog = {
+        itemId: id,
+        itemName: movementDetails.name,
+        sku: movementDetails.sku,
+        oldQuantity: movementDetails.oldQuantity,
+        newQuantity: movementDetails.newQuantity,
+        difference: movementDetails.difference,
+        timestamp: new Date().toISOString(),
+        action: movementDetails.difference > 0 ? 'add' : 'remove',
+        location: movementDetails.location || '',
+        rack: movementDetails.rack || '',
+        row: movementDetails.row || '',
+        position: movementDetails.position || '',
+        partyName: movementDetails.partyName || ''
+      };
+      await addDoc(collection(db, "movements"), movement);
     }
     return;
   }
 
   await fetch('/api/items', {
     method: 'PUT',
-    body: JSON.stringify({ id, updates: { quantity: newQuantity }, movementDetails: itemDetails })
+    body: JSON.stringify({ id, updates: { locations: updatedLocations }, movementDetails })
   });
 };
 

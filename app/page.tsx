@@ -3,71 +3,78 @@ import { PackageSearch, LayoutDashboard } from 'lucide-react';
 
 export default function Home() {
   return (
-    <div className="container animate-fade-in" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '85vh', textAlign: 'center' }}>
+    <div className="container animate-fade-in" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80vh', textAlign: 'center' }}>
 
-      {/* Hero Section */}
-      <div style={{ marginBottom: '4rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <div style={{ position: 'relative', display: 'inline-block', marginBottom: '1rem' }}>
-          <h1
-            style={{
-              fontSize: '5.5rem',
-              fontWeight: '800',
-              margin: '0',
-              background: 'linear-gradient(to bottom right, #ffffff 30%, #94a3b8 100%)',
-              WebkitBackgroundClip: 'text',
-              color: 'transparent',
-              letterSpacing: '-0.03em',
-              lineHeight: '1.1',
-              paddingBottom: '0.1em'
-            }}
-          >
-            Sharada Art's
-          </h1>
-          <div style={{
-            position: 'absolute',
-            bottom: '5px',
-            left: '10%',
-            width: '80%',
-            height: '3px',
-            background: 'linear-gradient(to right, transparent, var(--primary), transparent)',
-            borderRadius: '2px',
-            opacity: 0.8
-          }}></div>
+      {/* Hero Section / Banner */}
+      <div style={{
+        marginBottom: '1rem',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: '1.5rem 1rem',
+        width: '100%'
+      }}>
+        {/* Logo */}
+        <div style={{
+          width: '85px',
+          height: '85px',
+          borderRadius: '50%',
+          marginBottom: '1rem',
+          boxShadow: '0 8px 30px rgba(6, 82, 157, 0.3)',
+          border: '3px solid rgba(255,255,255,1)',
+          overflow: 'hidden',
+          backgroundColor: 'var(--primary)',
+          animation: 'pulseGlow 3s infinite'
+        }}>
+          <img
+            src="https://res.cloudinary.com/diaba1bf2/image/upload/v1789719211/LogoSA_n0ri05.jpg"
+            alt="Sharada Arts Logo"
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
         </div>
+
+        {/* Company Name */}
+        <h1 style={{
+          fontSize: 'clamp(2rem, 5vw, 3rem)',
+          fontWeight: '800',
+          margin: '0 0 0.25rem 0',
+          color: 'white',
+          letterSpacing: '1px',
+          lineHeight: '1.1',
+          display: 'flex',
+          gap: '0.75rem',
+          flexWrap: 'wrap',
+          justifyContent: 'center'
+        }}>
+          <span><span style={{ color: 'var(--accent)' }}>S</span>harada</span>
+          <span><span style={{ color: 'var(--accent)' }}>A</span>rts</span>
+        </h1>
+
+        {/* Subtitle */}
         <h2 style={{
-          fontSize: '2rem',
+          fontSize: 'clamp(0.9rem, 2vw, 1.2rem)',
           fontWeight: '500',
-          color: '#cbd5e1',
-          letterSpacing: '0.15em',
-          textTransform: 'uppercase',
-          marginBottom: '1.5rem'
-        }}
-        >
-          Material Tracking System
+          color: 'var(--text-main)',
+          letterSpacing: '0.05em',
+          margin: 0,
+          opacity: 0.95
+        }}>
+          Total Industrial Display Solution
         </h2>
-        <p style={{
-          color: '#f1f5f9',
-          fontSize: '1.15rem',
-          maxWidth: '650px',
-          lineHeight: '1.7',
-          opacity: 0.9
-        }}
-        >
-          A state-of-the-art material tracking solution. Manage your inventory, generate QR codes, and empower your pickers with real-time updates.
-        </p>
       </div>
 
       {/* Navigation Cards */}
       <div className="nav-cards-container">
         <Link href="/admin" className="nav-link">
-          <div className="card nav-card">
+          <div className="card nav-card" style={{ borderRadius: '20px' }}>
             <div className="nav-card-icon-wrapper" style={{
-              background: 'rgba(59, 130, 246, 0.15)',
-              color: '#60a5fa',
-              boxShadow: '0 0 30px rgba(59, 130, 246, 0.2)'
+              background: 'rgba(6, 82, 157, 0.15)',
+              color: 'var(--primary)',
+              boxShadow: '0 0 30px rgba(6, 82, 157, 0.3)',
+
             }}
             >
-              <LayoutDashboard size={56} />
+              <LayoutDashboard size={40} />
             </div>
             <div>
               <h2 className="nav-card-title">Admin Panel</h2>
@@ -77,14 +84,14 @@ export default function Home() {
         </Link>
 
         <Link href="/picker" className="nav-link">
-          <div className="card nav-card">
+          <div className="card nav-card" style={{ borderRadius: '20px' }}>
             <div className="nav-card-icon-wrapper" style={{
-              background: 'rgba(16, 185, 129, 0.15)',
-              color: '#34d399',
-              boxShadow: '0 0 30px rgba(16, 185, 129, 0.2)'
+              background: 'rgba(240, 86, 35, 0.15)',
+              color: 'var(--accent)',
+              boxShadow: '0 0 30px rgba(240, 86, 35, 0.3)'
             }}
             >
-              <PackageSearch size={56} />
+              <PackageSearch size={40} />
             </div>
             <div>
               <h2 className="nav-card-title">Picker Panel</h2>

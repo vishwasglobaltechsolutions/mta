@@ -14,6 +14,8 @@ let mockMovements: any[] = [
   }
 ];
 
-export async function GET() {
+export const dynamic = 'force-dynamic';
+
+export async function GET(request: Request) {
   return NextResponse.json(mockMovements.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
 }
